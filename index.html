@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAS HMMP - Bendahara</title>
+<link rel="icon" id="favicon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#f5f7fa; --card:#fff; --text:#2c3e50; --primary:#c0392b; --accent:#e67e22}
+body{font-family:Arial; background:var(--bg); color:var(--text); padding:15px; margin:0}
+.header{text-align:center; margin-bottom:20px}
+.header img{max-width:180px; width:100%; border-radius:50%; border:4px solid var(--primary); object-fit:cover; aspect-ratio:1/1; cursor:pointer}
+.header input[type=file]{margin-top:8px}
+.login-box{max-width:350px; margin:80px auto; background:var(--card); padding:25px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+.login-box input{width:100%; padding:10px; margin:8px 0; box-sizing:border-box}
+.topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap}
+.pertemuan{background:var(--card); padding:15px; margin:15px 0; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1)}
+.section{margin-top:15px; border-top:2px dashed #ddd; padding-top:10px}
+.judul-row{display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:#ecf0f1; padding:8px 10px; border-radius:6px}
+.judul-row h4{margin:0}
+table{width:100%; border-collapse:collapse; margin-top:8px}
+th{background:var(--primary); color:white; padding:8px; font-size:14px}
+td{border:1px solid #ccc; padding:8px; text-align:center; font-size:14px}
+input{width:90%; text-align:center; padding:6px; border:1px solid #ccc; background:var(--bg); color:var(--text); border-radius:4px}
+.total{background:#d4efdf; font-weight:bold; color:#2c3e50}
+.btn{padding:6px 12px; border:none; border-radius:5px; cursor:pointer; margin:3px; font-size:13px}
+.btn-simpan{background:#27ae60; color:white}
+.btn-load{background:#8e44ad; color:white}
+.btn-tambah{background:var(--accent); color:white}
+.btn-toggle{background:#2980b9; color:white; font-size:12px}
+.btn-logout{background:#c0392b; color:white}
+.btn-pdf{background:#e67e22; color:white}
+.btn-hapus{background:#e74c3c; color:white}
+.hidden{display:none}
+.sisa-box{background:#2ecc71; color:white; padding:12px; border-radius:8px; text-align:center; margin-top:15px; font-size:18px; font-weight:bold}
+footer{text-align:center; margin-top:40px; padding:15px; border-top:2px solid var(--primary); font-size:12px; opacity:0.8}
+small{font-size:10px; opacity:0.7}
+</style>
+</head>
+<body>
+
+<div id="loginPage" class="login-box">
+<h2 style="text-align:center">🔐 LOGIN BENDAHARA HMMP</h2>
+<input type="text" id="user" placeholder="Username">
+<input type="password" id="pass" placeholder="Password">
+<button class="btn btn-simpan" style="width:100%" onclick="login()">MASUK</button>
+</div>
+
+<div id="appPage" class="hidden">
+<div class="header">
+<img id="logoHMMP" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>" alt="Logo HMMP" onclick="window.open(this.src)">
+<br>
+<input type="file" id="logoInput" accept="image/*">
+<h2>BUKU KAS HMMP</h2>
+<p>HIMPUNAN MAHASISWA MANGGARAI PAPUA</p>
+</div>
+
+<div class="topbar">
+<div>
+<button class="btn btn-simpan" onclick="exportJSON()">💾 Export JSON</button>
+<input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+<button class="btn btn-load" onclick="document.getElementById('importFile').click()">📂 Import</button>
+<button class="btn btn-tambah" onclick="tambahPertemuan()">+ Pertemuan</button>
+</div>
+<button class="btn btn-logout" onclick="logout()">🚪 Logout</button>
+</div>
+
+<div id="konten"></div>
+<canvas id="grafik" style="margin-top:20px; max-height:300px"></canvas>
+
+<!-- HAK CIPTA BOS -->
+<footer>
+  <p>Hak Cipta © 2026 <b>ADRIANUS MARUT</b></p>
+  <p>DIBUAT UNTUK HIMPUNAN MAHASISWA MANGGARAI PAPUA</p>
+  <P>KAS DIGITAL ORGANISASI MAJU</P>
+</footer>
+</div>
+
+<script>
+let jmlP = 2;
+let isLogin = false;
+const USER = "admin";
+const PASS = "hmmp2026";
+const { jsPDF } = window.jspdf;
+
+window.onload = () => {
+  if(sessionStorage.getItem('loginHMMP') === 'true'){ showApp(); }
+  let logo = localStorage.getItem('logoHMMP');
+  if(logo && logo.startsWith('data:')) {
+    document.getElementById('logoHMMP').src = logo;
+    document.getElementById('favicon').href = logo;
+  }
+}
+
+function login(){
+  let u = document.getElementById('user').value;
+  let p = document.getElementById('pass').value;
+  if(u === USER && p === PASS){
+    sessionStorage.setItem('loginHMMP', 'true');
+    showApp();
+  } else { alert('Username/Password salah! Default: admin / hmmp2026'); }
+}
+
+function logout(){
+  sessionStorage.removeItem('loginHMMP');
+  location.reload();
+}
+
+function showApp(){
+  isLogin = true;
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('appPage').classList.remove('hidden');
+  render();
+}
+
+document.getElementById('logoInput').onchange = e => {
+  if(!isLogin) return alert('Login dulu bos!');
+  let file = e.target.files[0];
+  if(file){
+    compressImage(file, 180, 0.8, ev => {
+      document.getElementById('logoHMMP').src = ev;
+      document.getElementById('favicon').href = ev;
+      localStorage.setItem('logoHMMP', ev);
+    });
+  }
+}
+
+function render(){
+  let html = '';
+  for(let p=1; p<=jmlP; p++){
+    html += `<div class="pertemuan" id="p${p}">
+    <div style="display:flex; justify-content:space-between; align-items:center">
+      <h3>Pertemuan ${p} - <input type="date" id="tgl${p}" onchange="save()"></h3>
+      <button class="btn btn-pdf" onclick="exportPDF(${p})">📄 Export PDF</button>
+    </div>
+
+    <div class="section">
+      <div class="judul-row" onclick="toggle('anggota${p}')">
+        <h4>👥 Anggota & Iuran</h4>
+        <button class="btn btn-toggle" id="btn-anggota${p}">Tutup ▲</button>
+      </div>
+      <div id="anggota${p}">
+        <table id="tbl${p}">
+        <tr><th>Nama Anggota</th><th>Iuran</th><th>Konsumsi</th><th>Aksi</th></tr>
+        <tr class="total"><td>TOTAL IURAN</td><td id="i${p}">0</td><td id="k${p}">0</td><td></td></tr>
+        </table>
+        <button class="btn btn-tambah" onclick="addAnggota(${p})">+ Tambah Anggota</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="judul-row" onclick="toggle('keluar${p}')">
+        <h4>💸 Pengeluaran</h4>
+        <button class="btn btn-toggle" id="btn-keluar${p}">Tutup ▲</button>
+      </div>
+      <div id="keluar${p}">
+        <table id="tblKeluar${p}">
+        <tr><th>Tanggal</th><th>Nominal</th><th>Keterangan</th><th>Aksi</th></tr>
+        <tr class="total"><td colspan="1">TOTAL PENGELUARAN</td><td id="kl${p}" colspan="3">0</td></tr>
+        </table>
+        <button class="btn btn-tambah" onclick="addKeluar(${p})">+ Tambah Pengeluaran</button>
+      </div>
+    </div>
+
+    <div class="sisa-box">
+      Sisa Kas: Rp <span id="s${p}">0</span>
+    </div>
+    </div>`;
+  }
+  document.getElementById('konten').innerHTML = html;
+  loadData();
+  hitungSemua();
+  updateGrafik();
+}
+
+function toggle(id){
+  let el = document.getElementById(id);
+  let btn = document.getElementById('btn-'+id);
+  el.classList.toggle('hidden');
+  btn.innerText = el.classList.contains('hidden')? 'Buka ▼' : 'Tutup ▲';
+}
+
+function addAnggota(p){
+  if(!isLogin) return alert('Login dulu bos!');
+  let tbl = document.getElementById('tbl'+p);
+  let row = tbl.insertRow(tbl.rows.length-1);
+  row.innerHTML = `<td><input type="text" value="Nama Anggota" oninput="save()"></td>
+  <td><input type="number" value="0" oninput="save()"></td>
+  <td><input type="number" value="0" oninput="save()"></td>
+  <td><button class="btn btn-hapus" onclick="this.closest('tr').remove(); save()">X</button></td>`;
+}
+
+function compressImage(file, maxWidth, quality, callback){
+  let reader = new FileReader();
+  reader.onload = e => {
+    let img = new Image();
+    img.onload = () => {
+      let canvas = document.createElement('canvas');
+      let size = Math.min(img.width, img.height);
+      let sx = (img.width - size)/2;
+      let sy = (img.height - size)/2;
+      canvas.width = maxWidth;
+      canvas.height = maxWidth;
+      let ctx = canvas.getContext('2d');
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, maxWidth, maxWidth);
+      callback(canvas.toDataURL('image/jpeg', quality));
+    }
+    img.src = e.target.result;
+  }
+  reader.readAsDataURL(file);
+}
+
+function addKeluar(p){
+  if(!isLogin) return alert('Login dulu bos!');
+  let tbl = document.getElementById('tblKeluar'+p);
+  let row = tbl.insertRow(tbl.rows.length-1);
+  let today = new Date().toISOString().split('T')[0];
+  row.innerHTML = `<td><input type="date" value="${today}" oninput="save()"></td>
+  <td><input type="number" value="0" oninput="save()"></td>
+  <td><input type="text" value="Keterangan" oninput="save()"></td>
+  <td><button class="btn btn-hapus" onclick="this.closest('tr').remove(); save()">X</button></td>`;
+}
+
+function hitung(p){
+  let tblA = document.getElementById('tbl'+p);
+  let ti=0, tk=0;
+  for(let i=1; i<tblA.rows.length-1; i++){
+    let inp = tblA.rows[i].querySelectorAll('input');
+    ti += Number(inp[1].value)||0;
+    tk += Number(inp[2].value)||0;
+  }
+  document.getElementById('i'+p).innerText = ti.toLocaleString('id-ID');
+  document.getElementById('k'+p).innerText = tk.toLocaleString('id-ID');
+
+  let tblK = document.getElementById('tblKeluar'+p);
+  let tkl=0;
+  for(let i=1; i<tblK.rows.length-1; i++){
+    let inp = tblK.rows[i].querySelectorAll('input');
+    tkl += Number(inp[1].value)||0;
+  }
+  document.getElementById('kl'+p).innerText = tkl.toLocaleString('id-ID');
+
+  let prev = p==1?0:Number(document.getElementById('s'+(p-1)).innerText.replace(/\./g,''));
+  let sisa = prev + ti - tk - tkl;
+  document.getElementById('s'+p).innerText = sisa.toLocaleString('id-ID');
+}
+
+function save(){
+  if(!isLogin) return;
+  let data = {logo:localStorage.getItem('logoHMMP'), jml:jmlP, p:[]};
+  for(let p=1; p<=jmlP; p++){
+    let anggota = [], keluar = [];
+    let tbl = document.getElementById('tbl'+p);
+    for(let i=1; i<tbl.rows.length-1; i++){
+      let inp = tbl.rows[i].querySelectorAll('input');
+      anggota.push({
+        nama:inp[0].value,
+        iuran:inp[1].value,
+        konsumsi:inp[2].value
+      });
+    }
+    let tblK = document.getElementById('tblKeluar'+p);
+    for(let i=1; i<tblK.rows.length-1; i++){
+      let inp = tblK.rows[i].querySelectorAll('input');
+      keluar.push({tgl:inp[0].value, nominal:inp[1].value, ket:inp[2].value});
+    }
+    data.p.push({tgl:document.getElementById('tgl'+p).value, anggota, keluar});
+  }
+  localStorage.setItem('kasHMMP', JSON.stringify(data));
+  hitungSemua();
+  updateGrafik();
+}
+
+function loadData(){
+  let raw = localStorage.getItem('kasHMMP');
+  if(!raw) return;
+  let data = JSON.parse(raw);
+  jmlP = data.jml || 2;
+  data.p.forEach((d,idx)=>{
+    let p = idx+1;
+    if(document.getElementById('tgl'+p)) document.getElementById('tgl'+p).value = d.tgl;
+
+    let tbl = document.getElementById('tbl'+p);
+    tbl.innerHTML = tbl.rows[0].outerHTML;
+    d.anggota.forEach(a=>{
+      let row = tbl.insertRow();
+      row.innerHTML = `<td><input type="text" value="${a.nama}" oninput="save()"></td>
+      <td><input type="number" value="${a.iuran}" oninput="save()"></td>
+      <td><input type="number" value="${a.konsumsi}" oninput="save()"></td>
+      <td><button class="btn btn-hapus" onclick="this.closest('tr').remove(); save()">X</button></td>`;
+    });
+    tbl.insertRow().outerHTML = `<tr class="total"><td>TOTAL IURAN</td><td id="i${p}">0</td><td id="k${p}">0</td><td></td></tr>`;
+
+    let tblK = document.getElementById('tblKeluar'+p);
+    tblK.innerHTML = tblK.rows[0].outerHTML;
+    d.keluar.forEach(k=>{
+      let row = tblK.insertRow();
+      row.innerHTML = `<td><input type="date" value="${k.tgl}" oninput="save()"></td>
+      <td><input type="number" value="${k.nominal}" oninput="save()"></td>
+      <td><input type="text" value="${k.ket}" oninput="save()"></td>
+      <td><button class="btn btn-hapus" onclick="this.closest('tr').remove(); save()">X</button></td>`;
+    });
+    tblK.insertRow().outerHTML = `<tr class="total"><td colspan="1">TOTAL PENGELUARAN</td><td id="kl${p}" colspan="3">0</td></tr>`;
+  });
+}
+
+function hitungSemua(){ for(let i=1; i<=jmlP; i++) hitung(i); }
+function tambahPertemuan(){ if(!isLogin) return alert('Login dulu bos!'); jmlP++; render(); }
+
+function updateGrafik(){
+  let labels = [], masuk = [], keluar = [];
+  for(let p=1; p<=jmlP; p++){
+    labels.push('P'+p);
+    masuk.push(Number(document.getElementById('i'+p)?.innerText.replace(/\./g,'') || 0));
+    keluar.push(Number(document.getElementById('kl'+p)?.innerText.replace(/\./g,'') || 0));
+  }
+  if(window.chart) window.chart.destroy();
+  window.chart = new Chart(document.getElementById('grafik'), {
+    type:'bar',
+    data:{labels, datasets:[
+      {label:'Iuran Masuk', data:masuk, backgroundColor:'#27ae60'},
+      {label:'Pengeluaran', data:keluar, backgroundColor:'#e74c3c'}
+    ]},
+    options:{responsive:true, plugins:{legend:{position:'bottom'}}}
+  });
+}
+
+function exportPDF(p){
+  const doc = new jsPDF();
+  let tgl = document.getElementById('tgl'+p).value || '-';
+  let sisa = document.getElementById('s'+p).innerText;
+
+  doc.setFontSize(16);
+  doc.text('LAPORAN KAS HMMP', 105, 15, {align:'center'});
+  doc.setFontSize(12);
+  doc.text('Himpunan Mahasiswa Manggarai Papua', 105, 22, {align:'center'});
+  doc.text(`Pertemuan ${p} - Tanggal: ${tgl}`, 14, 35);
+
+  doc.setFontSize(13);
+  doc.text('DATA ANGGOTA & IURAN', 14, 50);
+  let y = 57;
+  doc.setFontSize(10);
+  doc.text('No', 14, y); doc.text('Nama', 35, y); doc.text('Iuran', 100, y); doc.text('Konsumsi', 140, y);
+  y += 7;
+  let tblA = document.getElementById('tbl'+p);
+  for(let i=1; i<tblA.rows.length-1; i++){
+    let inp = tblA.rows[i].querySelectorAll('input');
+    doc.text(i.toString(), 14, y);
+    doc.text(inp[0].value, 35, y);
+    doc.text(Number(inp[1].value).toLocaleString('id-ID'), 100, y);
+    doc.text(Number(inp[2].value).toLocaleString('id-ID'), 140, y);
+    y += 6;
+  }
+  doc.setFont(undefined, 'bold');
+  doc.text('TOTAL', 35, y);
+  doc.text(document.getElementById('i'+p).innerText, 100, y);
+  doc.text(document.getElementById('k'+p).innerText, 140, y);
+
+  y += 15;
+  doc.setFontSize(13);
+  doc.text('PENGELUARAN', 14, y);
+  y += 7;
+  doc.setFontSize(10);
+  doc.text('No', 14, y); doc.text('Tanggal', 30, y); doc.text('Nominal', 80, y); doc.text('Keterangan', 120, y);
+  y += 7;
+  let tblK = document.getElementById('tblKeluar'+p);
+  for(let i=1; i<tblK.rows.length-1; i++){
+    let inp = tblK.rows[i].querySelectorAll('input');
+    doc.text(i.toString(), 14, y);
+    doc.text(inp[0].value, 30, y);
+    doc.text(Number(inp[1].value).toLocaleString('id-ID'), 80, y);
+    doc.text(inp[2].value, 120, y);
+    y += 6;
+  }
+  doc.setFont(undefined, 'bold');
+  doc.text('TOTAL PENGELUARAN', 30, y);
+  doc.text(document.getElementById('kl'+p).innerText, 80, y);
+
+  y += 15;
+  doc.setFontSize(12);
+  doc.text(`SISA KAS: Rp ${sisa}`, 14, y);
+
+  doc.save(`Laporan_Kas_HMMP_Pertemuan${p}.pdf`);
+}
+
+function exportJSON(){
+  let data = {logo:localStorage.getItem('LOGOHMMP'), kas:localStorage.getItem('KAS')};
+  let blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+  let a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'KAS_HMMP.json';
+  a.click();
+}
+
+function importJSON(e){
+  let f = e.target.files[0];
+  let r = new FileReader();
+  r.onload = ev => {
+    let data = JSON.parse(ev.target.result);
+    if(data.logo) localStorage.setItem('LOGOHMMP', data.logo);
+    if(data.kas) localStorage.setItem('KASHMMP', data.kas);
+    location.reload();
+  }
+  r.readAsText(f);
+}
+</script>
+</body>
+</html>
