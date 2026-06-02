@@ -41,12 +41,6 @@ small{font-size:10px; opacity:0.7}
 </head>
 <body>
 
-<div id="loginPage" class="login-box">
-<h2 style="text-align:center">🔐 LOGIN BENDAHARA HMMP</h2>
-<input type="text" id="user" placeholder="Username">
-<input type="password" id="pass" placeholder="Password">
-<button class="btn btn-simpan" style="width:100%" onclick="login()">MASUK</button>
-</div>
 
 <div id="appPage" class="hidden">
 <div class="header">
@@ -78,58 +72,8 @@ small{font-size:10px; opacity:0.7}
 </footer>
 </div>
 
-<script>
-let jmlP = 2;
-let isLogin = false;
-const USER = "admin";
-const PASS = "Hmmp2026";
-const { jsPDF } = window.jspdf;
 
-window.onload = () => {
-  if(sessionStorage.getItem('loginHMMP') === 'true'){ showApp(); }
-  let logo = localStorage.getItem('logoHMMP');
-  if(logo && logo.startsWith('data:')) {
-    document.getElementById('logoHMMP').src = logo;
-    document.getElementById('favicon').href = logo;
-  }
-}
 
-function login(){
-  let u = document.getElementById('user').value;
-  let p = document.getElementById('pass').value;
-  if(u === USER && p === PASS){
-    sessionStorage.setItem('loginHMMP', 'true');
-    showApp();
-  } else { alert('Username/Password salah! Default: admin / Hmmp2026'); }
-}
-
-function logout(){
-  sessionStorage.removeItem('loginHMMP');
-  location.reload();
-}
-
-function showApp(){
-  isLogin = true;
-  document.getElementById('loginPage').classList.add('hidden');
-  document.getElementById('appPage').classList.remove('hidden');
-  render();
-}
-
-document.getElementById('logoInput').onchange = e => {
-  if(!isLogin) return alert('Login dulu bos!');
-  let file = e.target.files[0];
-  if(file){
-    compressImage(file, 180, 0.8, ev => {
-      document.getElementById('logoHMMP').src = ev;
-      document.getElementById('favicon').href = ev;
-      localStorage.setItem('logoHMMP', ev);
-    });
-  }
-}
-
-function render(){
-  let html = '';
-  for(let p=1; p<=jmlP; p++){
     html += `<div class="pertemuan" id="p${p}">
     <div style="display:flex; justify-content:space-between; align-items:center">
       <h3>Pertemuan ${p} - <input type="date" id="tgl${p}" onchange="save()"></h3>
